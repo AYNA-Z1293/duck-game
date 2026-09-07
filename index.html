@@ -1,0 +1,1561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Duck Game</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: skyblue;
+            font-family: Arial, sans-serif;
+        }
+
+        #game {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(skyblue 0%, #dff7ff 70%, #7ec850 70%);
+        }
+
+        #score {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 28px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 2px 2px 3px black;
+            z-index: 10;
+        }
+
+        #duck {
+            position: absolute;
+            left: 120px;
+            top: 250px;
+            font-size: 70px;
+            user-select: none;
+        }
+
+        .pipe {
+            position: absolute;
+            width: 80px;
+            background: green;
+            border: 5px solid darkgreen;
+        }
+
+        #gameOver {
+            position: absolute;
+            width: 100%;
+            top: 40%;
+            text-align: center;
+            color: white;
+            font-size: 45px;
+            font-weight: bold;
+            text-shadow: 3px 3px 5px black;
+            display: none;
+            z-index: 20;
+        }
+
+        #restart {
+            margin-top: 20px;
+            padding: 12px 25px;
+            font-size: 20px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+
+        #message {
+            position: absolute;
+            bottom: 30px;
+            width: 100%;
+            text-align: center;
+            font-size: 20px;
+            color: white;
+            text-shadow: 2px 2px 3px black;
+        }
+    </style>
+</head>
+
+<body>
+
+<div id="game">
+
+    <div id="score">Score: 0</div>
+
+    <div id="duck">🦆</div>
+
+    <div id="gameOver">
+        Game Over!
+        <br>
+        <button id="restart">Play Again</button>
+    </div>
+
+    <div id="message">
+        Press SPACE or click to fly 🦆
+    </div>
+
+</div>
+
+<script>
+
+    const game = document.getElementById("game");
+    const duck = document.getElementById("duck");
+    const scoreText = document.getElementById("score");
+    const gameOverText = document.getElementById("gameOver");
+    const restartButton = document.getElementById("restart");
+
+    let duckX = 120;
+    let duckY = 250;
+    let velocity = 0;
+
+    let gravity = 0.5;
+    let jump = -9;
+
+    let score = 0;
+    let gameRunning = true;
+
+    let pipes = [];
+
+    function fly() {
+        if (gameRunning) {
+            velocity = jump;
+        }
+    }
+
+    document.addEventListener("keydown", function(event) {
+        if (event.code === "Space") {
+            event.preventDefault();
+            fly();
+        }
+    });
+
+    document.addEventListener("click", function(event) {
+        if (event.target !== restartButton) {
+            fly();
+        }
+    });
+
+    function createPipe() {
+
+        const gap = 180;
+
+        const minHeight = 80;
+        const maxHeight = window.innerHeight - gap - 120;
+
+        const topHeight =
+            Math.floor(
+                Math.random() * (maxHeight - minHeight)
+            ) + minHeight;
+
+        const topPipe = document.createElement("div");
+        topPipe.className = "pipe";
+
+        topPipe.style.height = topHeight + "px";
+        topPipe.style.top = "0px";
+        topPipe.style.left = window.innerWidth + "px";
+
+        const bottomPipe = document.createElement("div");
+        bottomPipe.className = "pipe";
+
+        const bottomHeight =
+            window.innerHeight - topHeight - gap;
+
+        bottomPipe.style.height = bottomHeight + "px";
+        bottomPipe.style.bottom = "0px";
+        bottomPipe.style.left = window.innerWidth + "px";
+
+        game.appendChild(topPipe);
+        game.appendChild(bottomPipe);
+
+        pipes.push({
+            top: topPipe,
+            bottom: bottomPipe,
+            x: window.innerWidth,
+            passed: false
+        });
+    }
+
+    function collision(pipe) {
+
+        const duckRect = duck.getBoundingClientRect();
+        const topRect = pipe.top.getBoundingClientRect();
+        const bottomRect = pipe.bottom.getBoundingClientRect();
+
+        if (
+            duckRect.right > topRect.left &&
+            duckRect.left < topRect.right &&
+            (
+                duckRect.top < topRect.bottom ||
+                duckRect.bottom > bottomRect.top
+            )
+        ) {
+            return true;
+        }
+
+        return false;
+    }
+
+    function endGame() {
+
+        gameRunning = false;
+
+        gameOverText.style.display = "block";
+    }
+
+    function restartGame() {
+
+        pipes.forEach(function(pipe) {
+            pipe.top.remove();
+            pipe.bottom.remove();
+        });
+
+        pipes = [];
+
+        duckY = 250;
+        velocity = 0;
+        score = 0;
+
+        scoreText.textContent = "Score: 0";
+
+        gameOverText.style.display = "none";
+
+        gameRunning = true;
+    }
+
+    restartButton.addEventListener("click", function(event) {
+
+        event.stopPropagation();
+
+        restartGame();
+
+    });
+
+    function gameLoop() {
+
+        if (gameRunning) {
+
+            velocity += gravity;
+            duckY += velocity;
+
+            duck.style.left = duckX + "px";
+            duck.style.top = duckY + "px";
+
+            if (
+                duckY < 0 ||
+                duckY + duck.offsetHeight > window.innerHeight
+            ) {
+                endGame();
+            }
+
+            pipes.forEach(function(pipe) {
+
+                pipe.x -= 3;
+
+                pipe.top.style.left = pipe.x + "px";
+                pipe.bottom.style.left = pipe.x + "px";
+
+                if (collision(pipe)) {
+                    endGame();
+                }
+
+                if (!pipe.passed && pipe.x + 80 < duckX) {
+
+                    pipe.passed = true;
+
+                    score++;
+
+                    scoreText.textContent =
+                        "Score: " + score;
+                }
+
+            });
+
+            pipes = pipes.filter(function(pipe) {
+
+                if (pipe.x < -100) {
+
+                    pipe.top.remove();
+                    pipe.bottom.remove();
+
+                    return false;
+                }
+
+                return true;
+
+            });
+        }
+
+        requestAnimationFrame(gameLoop);
+    }
+
+    setInterval(function() {
+
+        if (gameRunning) {
+            createPipe();
+        }
+
+    }, 1800);
+
+    gameLoop();
+
+</script>
+
+</body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Duck Game</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: skyblue;
+            font-family: Arial, sans-serif;
+        }
+
+        #game {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(skyblue 0%, #dff7ff 70%, #7ec850 70%);
+        }
+
+        #score {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 28px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 2px 2px 3px black;
+            z-index: 10;
+        }
+
+        #duck {
+            position: absolute;
+            left: 120px;
+            top: 250px;
+            font-size: 70px;
+            user-select: none;
+        }
+
+        .pipe {
+            position: absolute;
+            width: 80px;
+            background: green;
+            border: 5px solid darkgreen;
+        }
+
+        #gameOver {
+            position: absolute;
+            width: 100%;
+            top: 40%;
+            text-align: center;
+            color: white;
+            font-size: 45px;
+            font-weight: bold;
+            text-shadow: 3px 3px 5px black;
+            display: none;
+            z-index: 20;
+        }
+
+        #restart {
+            margin-top: 20px;
+            padding: 12px 25px;
+            font-size: 20px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+
+        #message {
+            position: absolute;
+            bottom: 30px;
+            width: 100%;
+            text-align: center;
+            font-size: 20px;
+            color: white;
+            text-shadow: 2px 2px 3px black;
+        }
+    </style>
+</head>
+
+<body>
+
+<div id="game">
+
+    <div id="score">Score: 0</div>
+
+    <div id="duck">🦆</div>
+
+    <div id="gameOver">
+        Game Over!
+        <br>
+        <button id="restart">Play Again</button>
+    </div>
+
+    <div id="message">
+        Press SPACE or click to fly 🦆
+    </div>
+
+</div>
+
+<script>
+
+    const game = document.getElementById("game");
+    const duck = document.getElementById("duck");
+    const scoreText = document.getElementById("score");
+    const gameOverText = document.getElementById("gameOver");
+    const restartButton = document.getElementById("restart");
+
+    let duckX = 120;
+    let duckY = 250;
+    let velocity = 0;
+
+    let gravity = 0.5;
+    let jump = -9;
+
+    let score = 0;
+    let gameRunning = true;
+
+    let pipes = [];
+
+    function fly() {
+        if (gameRunning) {
+            velocity = jump;
+        }
+    }
+
+    document.addEventListener("keydown", function(event) {
+        if (event.code === "Space") {
+            event.preventDefault();
+            fly();
+        }
+    });
+
+    document.addEventListener("click", function(event) {
+        if (event.target !== restartButton) {
+            fly();
+        }
+    });
+
+    function createPipe() {
+
+        const gap = 180;
+
+        const minHeight = 80;
+        const maxHeight = window.innerHeight - gap - 120;
+
+        const topHeight =
+            Math.floor(
+                Math.random() * (maxHeight - minHeight)
+            ) + minHeight;
+
+        const topPipe = document.createElement("div");
+        topPipe.className = "pipe";
+
+        topPipe.style.height = topHeight + "px";
+        topPipe.style.top = "0px";
+        topPipe.style.left = window.innerWidth + "px";
+
+        const bottomPipe = document.createElement("div");
+        bottomPipe.className = "pipe";
+
+        const bottomHeight =
+            window.innerHeight - topHeight - gap;
+
+        bottomPipe.style.height = bottomHeight + "px";
+        bottomPipe.style.bottom = "0px";
+        bottomPipe.style.left = window.innerWidth + "px";
+
+        game.appendChild(topPipe);
+        game.appendChild(bottomPipe);
+
+        pipes.push({
+            top: topPipe,
+            bottom: bottomPipe,
+            x: window.innerWidth,
+            passed: false
+        });
+    }
+
+    function collision(pipe) {
+
+        const duckRect = duck.getBoundingClientRect();
+        const topRect = pipe.top.getBoundingClientRect();
+        const bottomRect = pipe.bottom.getBoundingClientRect();
+
+        if (
+            duckRect.right > topRect.left &&
+            duckRect.left < topRect.right &&
+            (
+                duckRect.top < topRect.bottom ||
+                duckRect.bottom > bottomRect.top
+            )
+        ) {
+            return true;
+        }
+
+        return false;
+    }
+
+    function endGame() {
+
+        gameRunning = false;
+
+        gameOverText.style.display = "block";
+    }
+
+    function restartGame() {
+
+        pipes.forEach(function(pipe) {
+            pipe.top.remove();
+            pipe.bottom.remove();
+        });
+
+        pipes = [];
+
+        duckY = 250;
+        velocity = 0;
+        score = 0;
+
+        scoreText.textContent = "Score: 0";
+
+        gameOverText.style.display = "none";
+
+        gameRunning = true;
+    }
+
+    restartButton.addEventListener("click", function(event) {
+
+        event.stopPropagation();
+
+        restartGame();
+
+    });
+
+    function gameLoop() {
+
+        if (gameRunning) {
+
+            velocity += gravity;
+            duckY += velocity;
+
+            duck.style.left = duckX + "px";
+            duck.style.top = duckY + "px";
+
+            if (
+                duckY < 0 ||
+                duckY + duck.offsetHeight > window.innerHeight
+            ) {
+                endGame();
+            }
+
+            pipes.forEach(function(pipe) {
+
+                pipe.x -= 3;
+
+                pipe.top.style.left = pipe.x + "px";
+                pipe.bottom.style.left = pipe.x + "px";
+
+                if (collision(pipe)) {
+                    endGame();
+                }
+
+                if (!pipe.passed && pipe.x + 80 < duckX) {
+
+                    pipe.passed = true;
+
+                    score++;
+
+                    scoreText.textContent =
+                        "Score: " + score;
+                }
+
+            });
+
+            pipes = pipes.filter(function(pipe) {
+
+                if (pipe.x < -100) {
+
+                    pipe.top.remove();
+                    pipe.bottom.remove();
+
+                    return false;
+                }
+
+                return true;
+
+            });
+        }
+
+        requestAnimationFrame(gameLoop);
+    }
+
+    setInterval(function() {
+
+        if (gameRunning) {
+            createPipe();
+        }
+
+    }, 1800);
+
+    gameLoop();
+
+</script>
+
+</body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Duck Game</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: skyblue;
+            font-family: Arial, sans-serif;
+        }
+
+        #game {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(skyblue 0%, #dff7ff 70%, #7ec850 70%);
+        }
+
+        #score {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 28px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 2px 2px 3px black;
+            z-index: 10;
+        }
+
+        #duck {
+            position: absolute;
+            left: 120px;
+            top: 250px;
+            font-size: 70px;
+            user-select: none;
+        }
+
+        .pipe {
+            position: absolute;
+            width: 80px;
+            background: green;
+            border: 5px solid darkgreen;
+        }
+
+        #gameOver {
+            position: absolute;
+            width: 100%;
+            top: 40%;
+            text-align: center;
+            color: white;
+            font-size: 45px;
+            font-weight: bold;
+            text-shadow: 3px 3px 5px black;
+            display: none;
+            z-index: 20;
+        }
+
+        #restart {
+            margin-top: 20px;
+            padding: 12px 25px;
+            font-size: 20px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+
+        #message {
+            position: absolute;
+            bottom: 30px;
+            width: 100%;
+            text-align: center;
+            font-size: 20px;
+            color: white;
+            text-shadow: 2px 2px 3px black;
+        }
+    </style>
+</head>
+
+<body>
+
+<div id="game">
+
+    <div id="score">Score: 0</div>
+
+    <div id="duck">🦆</div>
+
+    <div id="gameOver">
+        Game Over!
+        <br>
+        <button id="restart">Play Again</button>
+    </div>
+
+    <div id="message">
+        Press SPACE or click to fly 🦆
+    </div>
+
+</div>
+
+<script>
+
+    const game = document.getElementById("game");
+    const duck = document.getElementById("duck");
+    const scoreText = document.getElementById("score");
+    const gameOverText = document.getElementById("gameOver");
+    const restartButton = document.getElementById("restart");
+
+    let duckX = 120;
+    let duckY = 250;
+    let velocity = 0;
+
+    let gravity = 0.5;
+    let jump = -9;
+
+    let score = 0;
+    let gameRunning = true;
+
+    let pipes = [];
+
+    function fly() {
+        if (gameRunning) {
+            velocity = jump;
+        }
+    }
+
+    document.addEventListener("keydown", function(event) {
+        if (event.code === "Space") {
+            event.preventDefault();
+            fly();
+        }
+    });
+
+    document.addEventListener("click", function(event) {
+        if (event.target !== restartButton) {
+            fly();
+        }
+    });
+
+    function createPipe() {
+
+        const gap = 180;
+
+        const minHeight = 80;
+        const maxHeight = window.innerHeight - gap - 120;
+
+        const topHeight =
+            Math.floor(
+                Math.random() * (maxHeight - minHeight)
+            ) + minHeight;
+
+        const topPipe = document.createElement("div");
+        topPipe.className = "pipe";
+
+        topPipe.style.height = topHeight + "px";
+        topPipe.style.top = "0px";
+        topPipe.style.left = window.innerWidth + "px";
+
+        const bottomPipe = document.createElement("div");
+        bottomPipe.className = "pipe";
+
+        const bottomHeight =
+            window.innerHeight - topHeight - gap;
+
+        bottomPipe.style.height = bottomHeight + "px";
+        bottomPipe.style.bottom = "0px";
+        bottomPipe.style.left = window.innerWidth + "px";
+
+        game.appendChild(topPipe);
+        game.appendChild(bottomPipe);
+
+        pipes.push({
+            top: topPipe,
+            bottom: bottomPipe,
+            x: window.innerWidth,
+            passed: false
+        });
+    }
+
+    function collision(pipe) {
+
+        const duckRect = duck.getBoundingClientRect();
+        const topRect = pipe.top.getBoundingClientRect();
+        const bottomRect = pipe.bottom.getBoundingClientRect();
+
+        if (
+            duckRect.right > topRect.left &&
+            duckRect.left < topRect.right &&
+            (
+                duckRect.top < topRect.bottom ||
+                duckRect.bottom > bottomRect.top
+            )
+        ) {
+            return true;
+        }
+
+        return false;
+    }
+
+    function endGame() {
+
+        gameRunning = false;
+
+        gameOverText.style.display = "block";
+    }
+
+    function restartGame() {
+
+        pipes.forEach(function(pipe) {
+            pipe.top.remove();
+            pipe.bottom.remove();
+        });
+
+        pipes = [];
+
+        duckY = 250;
+        velocity = 0;
+        score = 0;
+
+        scoreText.textContent = "Score: 0";
+
+        gameOverText.style.display = "none";
+
+        gameRunning = true;
+    }
+
+    restartButton.addEventListener("click", function(event) {
+
+        event.stopPropagation();
+
+        restartGame();
+
+    });
+
+    function gameLoop() {
+
+        if (gameRunning) {
+
+            velocity += gravity;
+            duckY += velocity;
+
+            duck.style.left = duckX + "px";
+            duck.style.top = duckY + "px";
+
+            if (
+                duckY < 0 ||
+                duckY + duck.offsetHeight > window.innerHeight
+            ) {
+                endGame();
+            }
+
+            pipes.forEach(function(pipe) {
+
+                pipe.x -= 3;
+
+                pipe.top.style.left = pipe.x + "px";
+                pipe.bottom.style.left = pipe.x + "px";
+
+                if (collision(pipe)) {
+                    endGame();
+                }
+
+                if (!pipe.passed && pipe.x + 80 < duckX) {
+
+                    pipe.passed = true;
+
+                    score++;
+
+                    scoreText.textContent =
+                        "Score: " + score;
+                }
+
+            });
+
+            pipes = pipes.filter(function(pipe) {
+
+                if (pipe.x < -100) {
+
+                    pipe.top.remove();
+                    pipe.bottom.remove();
+
+                    return false;
+                }
+
+                return true;
+
+            });
+        }
+
+        requestAnimationFrame(gameLoop);
+    }
+
+    setInterval(function() {
+
+        if (gameRunning) {
+            createPipe();
+        }
+
+    }, 1800);
+
+    gameLoop();
+
+</script>
+
+</body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Duck Game</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: skyblue;
+            font-family: Arial, sans-serif;
+        }
+
+        #game {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(skyblue 0%, #dff7ff 70%, #7ec850 70%);
+        }
+
+        #score {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 28px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 2px 2px 3px black;
+            z-index: 10;
+        }
+
+        #duck {
+            position: absolute;
+            left: 120px;
+            top: 250px;
+            font-size: 70px;
+            user-select: none;
+        }
+
+        .pipe {
+            position: absolute;
+            width: 80px;
+            background: green;
+            border: 5px solid darkgreen;
+        }
+
+        #gameOver {
+            position: absolute;
+            width: 100%;
+            top: 40%;
+            text-align: center;
+            color: white;
+            font-size: 45px;
+            font-weight: bold;
+            text-shadow: 3px 3px 5px black;
+            display: none;
+            z-index: 20;
+        }
+
+        #restart {
+            margin-top: 20px;
+            padding: 12px 25px;
+            font-size: 20px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+
+        #message {
+            position: absolute;
+            bottom: 30px;
+            width: 100%;
+            text-align: center;
+            font-size: 20px;
+            color: white;
+            text-shadow: 2px 2px 3px black;
+        }
+    </style>
+</head>
+
+<body>
+
+<div id="game">
+
+    <div id="score">Score: 0</div>
+
+    <div id="duck">🦆</div>
+
+    <div id="gameOver">
+        Game Over!
+        <br>
+        <button id="restart">Play Again</button>
+    </div>
+
+    <div id="message">
+        Press SPACE or click to fly 🦆
+    </div>
+
+</div>
+
+<script>
+
+    const game = document.getElementById("game");
+    const duck = document.getElementById("duck");
+    const scoreText = document.getElementById("score");
+    const gameOverText = document.getElementById("gameOver");
+    const restartButton = document.getElementById("restart");
+
+    let duckX = 120;
+    let duckY = 250;
+    let velocity = 0;
+
+    let gravity = 0.5;
+    let jump = -9;
+
+    let score = 0;
+    let gameRunning = true;
+
+    let pipes = [];
+
+    function fly() {
+        if (gameRunning) {
+            velocity = jump;
+        }
+    }
+
+    document.addEventListener("keydown", function(event) {
+        if (event.code === "Space") {
+            event.preventDefault();
+            fly();
+        }
+    });
+
+    document.addEventListener("click", function(event) {
+        if (event.target !== restartButton) {
+            fly();
+        }
+    });
+
+    function createPipe() {
+
+        const gap = 180;
+
+        const minHeight = 80;
+        const maxHeight = window.innerHeight - gap - 120;
+
+        const topHeight =
+            Math.floor(
+                Math.random() * (maxHeight - minHeight)
+            ) + minHeight;
+
+        const topPipe = document.createElement("div");
+        topPipe.className = "pipe";
+
+        topPipe.style.height = topHeight + "px";
+        topPipe.style.top = "0px";
+        topPipe.style.left = window.innerWidth + "px";
+
+        const bottomPipe = document.createElement("div");
+        bottomPipe.className = "pipe";
+
+        const bottomHeight =
+            window.innerHeight - topHeight - gap;
+
+        bottomPipe.style.height = bottomHeight + "px";
+        bottomPipe.style.bottom = "0px";
+        bottomPipe.style.left = window.innerWidth + "px";
+
+        game.appendChild(topPipe);
+        game.appendChild(bottomPipe);
+
+        pipes.push({
+            top: topPipe,
+            bottom: bottomPipe,
+            x: window.innerWidth,
+            passed: false
+        });
+    }
+
+    function collision(pipe) {
+
+        const duckRect = duck.getBoundingClientRect();
+        const topRect = pipe.top.getBoundingClientRect();
+        const bottomRect = pipe.bottom.getBoundingClientRect();
+
+        if (
+            duckRect.right > topRect.left &&
+            duckRect.left < topRect.right &&
+            (
+                duckRect.top < topRect.bottom ||
+                duckRect.bottom > bottomRect.top
+            )
+        ) {
+            return true;
+        }
+
+        return false;
+    }
+
+    function endGame() {
+
+        gameRunning = false;
+
+        gameOverText.style.display = "block";
+    }
+
+    function restartGame() {
+
+        pipes.forEach(function(pipe) {
+            pipe.top.remove();
+            pipe.bottom.remove();
+        });
+
+        pipes = [];
+
+        duckY = 250;
+        velocity = 0;
+        score = 0;
+
+        scoreText.textContent = "Score: 0";
+
+        gameOverText.style.display = "none";
+
+        gameRunning = true;
+    }
+
+    restartButton.addEventListener("click", function(event) {
+
+        event.stopPropagation();
+
+        restartGame();
+
+    });
+
+    function gameLoop() {
+
+        if (gameRunning) {
+
+            velocity += gravity;
+            duckY += velocity;
+
+            duck.style.left = duckX + "px";
+            duck.style.top = duckY + "px";
+
+            if (
+                duckY < 0 ||
+                duckY + duck.offsetHeight > window.innerHeight
+            ) {
+                endGame();
+            }
+
+            pipes.forEach(function(pipe) {
+
+                pipe.x -= 3;
+
+                pipe.top.style.left = pipe.x + "px";
+                pipe.bottom.style.left = pipe.x + "px";
+
+                if (collision(pipe)) {
+                    endGame();
+                }
+
+                if (!pipe.passed && pipe.x + 80 < duckX) {
+
+                    pipe.passed = true;
+
+                    score++;
+
+                    scoreText.textContent =
+                        "Score: " + score;
+                }
+
+            });
+
+            pipes = pipes.filter(function(pipe) {
+
+                if (pipe.x < -100) {
+
+                    pipe.top.remove();
+                    pipe.bottom.remove();
+
+                    return false;
+                }
+
+                return true;
+
+            });
+        }
+
+        requestAnimationFrame(gameLoop);
+    }
+
+    setInterval(function() {
+
+        if (gameRunning) {
+            createPipe();
+        }
+
+    }, 1800);
+
+    gameLoop();
+
+</script>
+
+</body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Duck Game</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: skyblue;
+            font-family: Arial, sans-serif;
+        }
+
+        #game {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(skyblue 0%, #dff7ff 70%, #7ec850 70%);
+        }
+
+        #score {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 28px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 2px 2px 3px black;
+            z-index: 10;
+        }
+
+        #duck {
+            position: absolute;
+            left: 120px;
+            top: 250px;
+            font-size: 70px;
+            user-select: none;
+        }
+
+        .pipe {
+            position: absolute;
+            width: 80px;
+            background: green;
+            border: 5px solid darkgreen;
+        }
+
+        #gameOver {
+            position: absolute;
+            width: 100%;
+            top: 40%;
+            text-align: center;
+            color: white;
+            font-size: 45px;
+            font-weight: bold;
+            text-shadow: 3px 3px 5px black;
+            display: none;
+            z-index: 20;
+        }
+
+        #restart {
+            margin-top: 20px;
+            padding: 12px 25px;
+            font-size: 20px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+
+        #message {
+            position: absolute;
+            bottom: 30px;
+            width: 100%;
+            text-align: center;
+            font-size: 20px;
+            color: white;
+            text-shadow: 2px 2px 3px black;
+        }
+    </style>
+</head>
+
+<body>
+
+<div id="game">
+
+    <div id="score">Score: 0</div>
+
+    <div id="duck">🦆</div>
+
+    <div id="gameOver">
+        Game Over!
+        <br>
+        <button id="restart">Play Again</button>
+    </div>
+
+    <div id="message">
+        Press SPACE or click to fly 🦆
+    </div>
+
+</div>
+
+<script>
+
+    const game = document.getElementById("game");
+    const duck = document.getElementById("duck");
+    const scoreText = document.getElementById("score");
+    const gameOverText = document.getElementById("gameOver");
+    const restartButton = document.getElementById("restart");
+
+    let duckX = 120;
+    let duckY = 250;
+    let velocity = 0;
+
+    let gravity = 0.5;
+    let jump = -9;
+
+    let score = 0;
+    let gameRunning = true;
+
+    let pipes = [];
+
+    function fly() {
+        if (gameRunning) {
+            velocity = jump;
+        }
+    }
+
+    document.addEventListener("keydown", function(event) {
+        if (event.code === "Space") {
+            event.preventDefault();
+            fly();
+        }
+    });
+
+    document.addEventListener("click", function(event) {
+        if (event.target !== restartButton) {
+            fly();
+        }
+    });
+
+    function createPipe() {
+
+        const gap = 180;
+
+        const minHeight = 80;
+        const maxHeight = window.innerHeight - gap - 120;
+
+        const topHeight =
+            Math.floor(
+                Math.random() * (maxHeight - minHeight)
+            ) + minHeight;
+
+        const topPipe = document.createElement("div");
+        topPipe.className = "pipe";
+
+        topPipe.style.height = topHeight + "px";
+        topPipe.style.top = "0px";
+        topPipe.style.left = window.innerWidth + "px";
+
+        const bottomPipe = document.createElement("div");
+        bottomPipe.className = "pipe";
+
+        const bottomHeight =
+            window.innerHeight - topHeight - gap;
+
+        bottomPipe.style.height = bottomHeight + "px";
+        bottomPipe.style.bottom = "0px";
+        bottomPipe.style.left = window.innerWidth + "px";
+
+        game.appendChild(topPipe);
+        game.appendChild(bottomPipe);
+
+        pipes.push({
+            top: topPipe,
+            bottom: bottomPipe,
+            x: window.innerWidth,
+            passed: false
+        });
+    }
+
+    function collision(pipe) {
+
+        const duckRect = duck.getBoundingClientRect();
+        const topRect = pipe.top.getBoundingClientRect();
+        const bottomRect = pipe.bottom.getBoundingClientRect();
+
+        if (
+            duckRect.right > topRect.left &&
+            duckRect.left < topRect.right &&
+            (
+                duckRect.top < topRect.bottom ||
+                duckRect.bottom > bottomRect.top
+            )
+        ) {
+            return true;
+        }
+
+        return false;
+    }
+
+    function endGame() {
+
+        gameRunning = false;
+
+        gameOverText.style.display = "block";
+    }
+
+    function restartGame() {
+
+        pipes.forEach(function(pipe) {
+            pipe.top.remove();
+            pipe.bottom.remove();
+        });
+
+        pipes = [];
+
+        duckY = 250;
+        velocity = 0;
+        score = 0;
+
+        scoreText.textContent = "Score: 0";
+
+        gameOverText.style.display = "none";
+
+        gameRunning = true;
+    }
+
+    restartButton.addEventListener("click", function(event) {
+
+        event.stopPropagation();
+
+        restartGame();
+
+    });
+
+    function gameLoop() {
+
+        if (gameRunning) {
+
+            velocity += gravity;
+            duckY += velocity;
+
+            duck.style.left = duckX + "px";
+            duck.style.top = duckY + "px";
+
+            if (
+                duckY < 0 ||
+                duckY + duck.offsetHeight > window.innerHeight
+            ) {
+                endGame();
+            }
+
+            pipes.forEach(function(pipe) {
+
+                pipe.x -= 3;
+
+                pipe.top.style.left = pipe.x + "px";
+                pipe.bottom.style.left = pipe.x + "px";
+
+                if (collision(pipe)) {
+                    endGame();
+                }
+
+                if (!pipe.passed && pipe.x + 80 < duckX) {
+
+                    pipe.passed = true;
+
+                    score++;
+
+                    scoreText.textContent =
+                        "Score: " + score;
+                }
+
+            });
+
+            pipes = pipes.filter(function(pipe) {
+
+                if (pipe.x < -100) {
+
+                    pipe.top.remove();
+                    pipe.bottom.remove();
+
+                    return false;
+                }
+
+                return true;
+
+            });
+        }
+
+        requestAnimationFrame(gameLoop);
+    }
+
+    setInterval(function() {
+
+        if (gameRunning) {
+            createPipe();
+        }
+
+    }, 1800);
+
+    gameLoop();
+
+</script>
+
+</body>
+</html>
